@@ -1020,14 +1020,21 @@ class AttackPathManager:
         Returns:
             Tuple of (app_name, target_name, source_name, principal_name)
         """
-        # Get application
+        # Get application (target app with privileges - first in list)
         app_list = list(entities.get('applications', []))
         if not app_list:
             raise ValueError(f"{path_name}: No applications specified")
+        
+        logging.debug(f"{path_name}: Found {len(app_list)} application(s) in entities")
+        for idx, app in enumerate(app_list):
+            logging.debug(f"{path_name}:   App {idx}: {app.get('name', 'random')}")
+        
         app_spec = app_list[0]
         app_name = app_spec.get('name', 'random')
         if app_name == 'random':
             app_name = random.choice(list(applications.keys()))
+        
+        logging.debug(f"{path_name}: Selected target app: {app_name}")
         
         # Get source resource
         if source_type == 'vm':
@@ -1096,20 +1103,36 @@ class AttackPathManager:
             principal_name = user_spec.get('name', 'random')
             if principal_name == 'random':
                 principal_name = random.choice(list(users.keys()))
+            logging.debug(f"{path_name}: Selected initial access user: {principal_name}")
         elif identity_type == 'service_principal':
-            # For service_principal, use a specified service principal or the target app
-            sp_list = list(entities.get('service_principals', []))
-            if sp_list:
-                sp_spec = sp_list[0]
+            # For service_principal, use the SECOND application in the list (initial access app)
+            # Convention: app_list[0] = target app (with API permissions)
+            #             app_list[1] = initial access app (gets VM Contributor)
+            if len(app_list) > 1:
+                # Use second app as initial access service principal
+                sp_spec = app_list[1]
                 principal_name = sp_spec.get('name', 'random')
                 if principal_name == 'random':
-                    # Use a random application as service principal
+                    # Use a random application as service principal (different from target)
                     sp_keys = [k for k in applications.keys() if k != app_name]
                     principal_name = random.choice(sp_keys) if sp_keys else app_name
+                logging.debug(f"{path_name}: Using second app in list as initial access SP: {principal_name}")
             else:
-                # Default to using a different application as service principal
-                sp_keys = [k for k in applications.keys() if k != app_name]
-                principal_name = random.choice(sp_keys) if sp_keys else app_name
+                # Fallback: check for explicit service_principals list
+                sp_list = list(entities.get('service_principals', []))
+                if sp_list:
+                    sp_spec = sp_list[0]
+                    principal_name = sp_spec.get('name', 'random')
+                    if principal_name == 'random':
+                        # Use a random application as service principal
+                        sp_keys = [k for k in applications.keys() if k != app_name]
+                        principal_name = random.choice(sp_keys) if sp_keys else app_name
+                    logging.debug(f"{path_name}: Using service_principals list: {principal_name}")
+                else:
+                    # Default to using a different application as service principal
+                    sp_keys = [k for k in applications.keys() if k != app_name]
+                    principal_name = random.choice(sp_keys) if sp_keys else app_name
+                    logging.warning(f"{path_name}: Only one app specified, using different app as initial access: {principal_name}")
         else:
             # Default to user
             user_list = list(entities.get('users', []))
@@ -1120,6 +1143,7 @@ class AttackPathManager:
                     principal_name = random.choice(list(users.keys()))
             else:
                 principal_name = random.choice(list(users.keys()))
+            logging.debug(f"{path_name}: Selected initial access principal (default): {principal_name}")
         
         return app_name, target_name, source_name, principal_name
     

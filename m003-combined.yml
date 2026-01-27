@@ -1,0 +1,142 @@
+mode: targeted
+
+tenant:
+  tenant_id: 
+  domain: 
+  subscription_id: 
+
+  # Identity resources - totals for all 4 attack paths
+  users: 4                     # 1 user per attack path (4 total)
+  applications: 8              # 2 service principals per attack path (8 total)
+  groups: 0
+  administrative_units: 0
+
+  # Azure resources - totals for all 4 attack paths
+  resource_groups: 4           # 1 RG per attack path (4 total)
+  key_vaults: 3                # Paths 1, 2, 3 use Key Vaults
+  storage_accounts: 1          # Path 4 uses Storage Account
+  virtual_machines: 4          # 1 VM per attack path (4 total)
+  logic_apps: 0
+  automation_accounts: 0
+  function_apps: 0
+
+attack_paths:
+  # Path 1: Key Vault with Secret + Microsoft Graph Mail.Read
+  email_exfiltration_kv_secret_graph:
+    enabled: true
+    description: "ManagedIdentityTheft via VM to Key Vault (secret) with Microsoft Graph Mail.Read"
+    initial_access: token
+    privilege_escalation: ManagedIdentityTheft
+    source_type: vm
+    target_resource_type: key_vault
+    credential_type: secret
+    entry_point: compromised_identity
+    identity_type: service_principal
+    method: APIPermission
+    api_type: graph
+    app_role: 810c84a8-4a9e-49e6-bf7d-12d183f40d01  # Mail.Read
+    entities:
+      resource_groups:
+        - name: m003-path1-rg
+      applications:
+        - name: m003-path1-target-app    # Target app (Mail.Read - credentials in KV)
+        - name: m003-path1-initial-app   # Initial access app (VM Contributor)
+      users:
+        - name: m003-path1-user
+      key_vaults:
+        - name: m003-path1-kv
+          resource_group: m003-path1-rg
+      virtual_machines:
+        - name: m003-path1-vm
+          os_type: Windows
+          resource_group: m003-path1-rg
+
+  # Path 2: Key Vault with Certificate + Microsoft Graph Mail.Read
+  email_exfiltration_kv_cert_graph:
+    enabled: true
+    description: "ManagedIdentityTheft via VM to Key Vault (certificate) with Microsoft Graph Mail.Read"
+    initial_access: token
+    privilege_escalation: ManagedIdentityTheft
+    source_type: vm
+    target_resource_type: key_vault
+    credential_type: certificate
+    entry_point: compromised_identity
+    identity_type: service_principal
+    method: APIPermission
+    api_type: graph
+    app_role: 810c84a8-4a9e-49e6-bf7d-12d183f40d01  # Mail.Read
+    entities:
+      resource_groups:
+        - name: m003-path2-rg
+      applications:
+        - name: m003-path2-target-app    # Target app (Mail.Read - credentials in KV)
+        - name: m003-path2-initial-app   # Initial access app (VM Contributor)
+      users:
+        - name: m003-path2-user
+      key_vaults:
+        - name: m003-path2-kv
+          resource_group: m003-path2-rg
+      virtual_machines:
+        - name: m003-path2-vm
+          os_type: Windows
+          resource_group: m003-path2-rg
+
+  # Path 3: Key Vault with Secret + Exchange Online full_access_as_app
+  email_exfiltration_kv_secret_exchange:
+    enabled: true
+    description: "ManagedIdentityTheft via VM to Key Vault (secret) with Exchange Online full_access_as_app"
+    initial_access: token
+    privilege_escalation: ManagedIdentityTheft
+    source_type: vm
+    target_resource_type: key_vault
+    credential_type: secret
+    entry_point: compromised_identity
+    identity_type: service_principal
+    method: APIPermission
+    api_type: exchange
+    app_role: dc890d15-9560-4a4c-9b7f-a736ec74ec40  # full_access_as_app
+    entities:
+      resource_groups:
+        - name: m003-path3-rg
+      applications:
+        - name: m003-path3-target-app    # Target app (full_access_as_app - credentials in KV)
+        - name: m003-path3-initial-app   # Initial access app (VM Contributor)
+      users:
+        - name: m003-path3-user
+      key_vaults:
+        - name: m003-path3-kv
+          resource_group: m003-path3-rg
+      virtual_machines:
+        - name: m003-path3-vm
+          os_type: Windows
+          resource_group: m003-path3-rg
+
+  # Path 4: Storage Account with Secret + Microsoft Graph Mail.Read
+  email_exfiltration_storage_secret_graph:
+    enabled: true
+    description: "ManagedIdentityTheft via VM to Storage Account (app ID + secret files) with Microsoft Graph Mail.Read"
+    initial_access: token
+    privilege_escalation: ManagedIdentityTheft
+    source_type: vm
+    target_resource_type: storage_account
+    credential_type: secret
+    entry_point: compromised_identity
+    identity_type: service_principal
+    method: APIPermission
+    api_type: graph
+    app_role: 810c84a8-4a9e-49e6-bf7d-12d183f40d01  # Mail.Read
+    entities:
+      resource_groups:
+        - name: m003-path4-rg
+      applications:
+        - name: m003-path4-target-app    # Target app (Mail.Read - credentials in Storage)
+        - name: m003-path4-initial-app   # Initial access app (VM Contributor)
+      users:
+        - name: m003-path4-user
+      storage_accounts:
+        - name: m003path4sa
+          resource_group: m003-path4-rg
+      virtual_machines:
+        - name: m003-path4-vm
+          os_type: Windows
+          resource_group: m003-path4-rg
